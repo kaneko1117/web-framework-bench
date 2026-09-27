@@ -1,0 +1,5 @@
+{
+  "name": "@wfb/conformance",
+  "private": true,
+  "type": "module"
+}

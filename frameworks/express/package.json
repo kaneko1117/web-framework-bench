@@ -1,0 +1,17 @@
+{
+  "name": "wfb-express",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "express": "5.2.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "24.19.0",
+    "typescript": "6.0.3"
+  }
+}

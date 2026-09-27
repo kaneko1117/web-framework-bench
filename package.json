@@ -1,0 +1,16 @@
+{
+  "name": "web-framework-bench",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "tools/*"
+  ],
+  "scripts": {
+    "conformance": "node tools/conformance/src/run.ts",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "typescript": "6.0.3"
+  }
+}
