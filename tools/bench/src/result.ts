@@ -9,7 +9,7 @@ export type ScenarioResult = {
   peakMemoryBytes: number;
 };
 
-/** One start-to-stop measurement of a single scenario. */
+/** 1つの操作を、起動から片付けまで1回測った結果。 */
 export type Run = ScenarioResult & {
   repetition: number;
   scenario: Scenario;
@@ -21,7 +21,7 @@ export type Run = ScenarioResult & {
 export type FrameworkResult = {
   name: string;
   runtimeVersion: string;
-  /** Medians across all runs. */
+  /** 全回の真ん中の値。 */
   startupMs: number;
   idleMemoryBytes: number;
   scenarios: Record<Scenario, ScenarioResult>;
@@ -41,7 +41,7 @@ export type BenchResult = {
     dockerCpus: number;
     dockerMemoryBytes: number;
     k6Image: string;
-    /** Containers that were already running when the benchmark started. */
+    /** 計測開始時にすでに動いていた箱。 */
     otherContainers: string[];
   };
   conditions: {

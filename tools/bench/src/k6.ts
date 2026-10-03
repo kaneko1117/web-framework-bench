@@ -12,7 +12,7 @@ export type K6Params = {
   baseUrl: string;
   scenario: string;
   vus: number;
-  /** Either a fixed duration or a fixed number of iterations. */
+  /** 時間か回数のどちらかで区切る。 */
   duration?: string;
   iterations?: number;
   seeded?: number;
@@ -20,7 +20,7 @@ export type K6Params = {
 
 export type K6Summary = { requests: number; rps: number; latencyMs: Latency };
 
-/** Runs k6 without blocking the event loop, so watchers keep receiving data meanwhile. */
+/** k6 を待つ間も他の処理を止めずに動かす(メモリの見張り役が値を受け取れるように)。 */
 export async function runK6(p: K6Params): Promise<K6Summary> {
   const env = {
     BASE_URL: p.baseUrl,
@@ -37,7 +37,7 @@ export async function runK6(p: K6Params): Promise<K6Summary> {
   const child = spawn("docker", args, { stdio: ["ignore", "pipe", "inherit"] });
   let stdout = "";
   child.stdout.setEncoding("utf8").on("data", (chunk: string) => (stdout += chunk));
-  // "close" waits for stdout to drain, unlike "exit".
+  // "exit" と違い、"close" は出力を読み終えるまで待つ。
   const [code] = await once(child, "close");
   if (code !== 0) throw new Error(`k6 ${p.scenario} exited with code ${code}`);
   const summary = JSON.parse(stdout.trim().split("\n").pop()!) as K6Summary & { failedRate: number };

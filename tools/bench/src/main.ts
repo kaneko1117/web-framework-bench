@@ -35,9 +35,9 @@ const MIN_DOCKER_CPUS = 4;
 const NETWORK = "wfb-bench";
 const STARTUP_POLL_MS = 10;
 
-/** Removes the network and anything still attached to it, e.g. leftovers of a killed run. */
+/** ネットワークと、そこにつながった箱(途中で止めた計測の残骸など)を消す。 */
 function removeNetwork(): void {
-  // spawnSync does not throw, so a missing network is fine.
+  // spawnSync は失敗しても例外を出さないので、ネットワークが無くても問題ない。
   const attached = spawnSync("docker", ["network", "inspect", "-f", "{{range .Containers}}{{.Name}} {{end}}", NETWORK], {
     encoding: "utf8",
   });
@@ -47,12 +47,14 @@ function removeNetwork(): void {
   spawnSync("docker", ["network", "rm", NETWORK], { stdio: "ignore" });
 }
 
+/** 真ん中の値(偶数個なら真ん中2つの平均)。 */
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
 
+/** 空いているポート番号を OS にもらう。 */
 async function freePort(): Promise<number> {
   const server = createServer().listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -62,6 +64,7 @@ async function freePort(): Promise<number> {
   return port;
 }
 
+/** 新しいサーバーの箱を起動し、返事が来るまでの時間を測る。 */
 async function startServer(framework: string): Promise<{ container: string; host: string; startupMs: number }> {
   const host = `wfb-srv-${framework}`;
   spawnSync("docker", ["rm", "-f", host], { stdio: "ignore" });
@@ -85,6 +88,7 @@ async function startServer(framework: string): Promise<{ container: string; host
   }
 }
 
+/** メモリを見張りながら k6 を動かし、結果とメモリの最大値を返す。 */
 async function withPeakMemory(
   container: string,
   run: () => Promise<K6Summary>,
@@ -98,6 +102,7 @@ async function withPeakMemory(
   }
 }
 
+/** 1回の計測: 起動 → 100件投入 → 待機中のメモリ → 準備運動 → 本番 → 片付け。 */
 async function measure(framework: string, scenario: Scenario, repetition: number): Promise<Run> {
   const { container, host, startupMs } = await startServer(framework);
   const k6 = async (p: Omit<K6Params, "network" | "cpuset" | "baseUrl" | "vus">) => {
@@ -122,6 +127,7 @@ async function measure(framework: string, scenario: Scenario, repetition: number
   }
 }
 
+/** 1つのフレームワークの全回分を、操作ごとの真ん中の値にまとめる。 */
 function aggregate(name: string, runtimeVersion: string, runs: Run[]): FrameworkResult {
   const scenarios = {} as FrameworkResult["scenarios"];
   for (const scenario of SCENARIOS) {
@@ -149,6 +155,7 @@ function aggregate(name: string, runtimeVersion: string, runs: Run[]): Framework
   };
 }
 
+/** 計測したマシンと Docker の条件を記録する。 */
 function collectEnvironment(): BenchResult["environment"] {
   const macVersion = os.platform() === "darwin" ? execFileSync("sw_vers", ["-productVersion"], { encoding: "utf8" }).trim() : "";
   return {
@@ -164,6 +171,7 @@ function collectEnvironment(): BenchResult["environment"] {
   };
 }
 
+/** フレームワークごとに結果の表を出す。 */
 function printSummary(result: BenchResult): void {
   const mb = (bytes: number) => (bytes / 1024 ** 2).toFixed(1);
   for (const f of result.frameworks) {
@@ -179,6 +187,7 @@ function printSummary(result: BenchResult): void {
   }
 }
 
+/** `--try 名前...` を読む。引数なしなら本番計測。 */
 function parseArgs(argv: string[]): { tryMode: boolean; names: string[] } {
   if (argv[0] === "--try") {
     if (argv.length === 1) throw new Error("--try needs at least one framework name");
@@ -188,6 +197,7 @@ function parseArgs(argv: string[]): { tryMode: boolean; names: string[] } {
   return { tryMode: false, names: [] };
 }
 
+/** 仕様チェック → 周 × フレームワーク × 操作をすべて測る → 表示して保存。 */
 async function main(): Promise<void> {
   const { tryMode, names } = parseArgs(process.argv.slice(2));
   const available = listFrameworks();
@@ -218,7 +228,7 @@ async function main(): Promise<void> {
   const runs = new Map<string, Run[]>(frameworks.map((n) => [n, []]));
   const total = repetitions * frameworks.length * SCENARIOS.length;
   let done = 0;
-  // Frameworks are interleaved per repetition so that drift over a long session hits them evenly.
+  // 周ごとにフレームワークを交互に回し、時間がたつにつれて出るぶれを全員に均等にかける。
   for (let repetition = 1; repetition <= repetitions; repetition++) {
     for (const name of frameworks) {
       for (const scenario of SCENARIOS) {

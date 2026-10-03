@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       try:
-        description: "Space-separated framework names for a single unsaved run (empty = full benchmark)"
+        description: "お試しで測るフレームワーク名(空白区切り)。空なら本番計測"
         required: false
         default: ""
 
@@ -22,7 +22,7 @@ jobs:
       - name: npm run bench
         env:
           TRY: ${{ inputs.try }}
-        # $TRY is split into names on purpose; the bench rejects unknown names.
+        # $TRY はわざと空白で区切って名前の並びにする。知らない名前は指揮役がはじく。
         run: npm run bench -- ${TRY:+--try $TRY}
       - uses: actions/upload-artifact@v7
         if: inputs.try == ''

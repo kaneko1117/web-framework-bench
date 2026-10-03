@@ -15,6 +15,7 @@ import {
 const TEST_FILE = fileURLToPath(new URL("./tasks.test.ts", import.meta.url));
 const TEST_TIMEOUT_MS = 10_000;
 
+/** baseUrl に仕様チェックを流す。全部合格なら true。 */
 async function runTests(baseUrl: string): Promise<boolean> {
   const child = spawn(process.execPath, ["--test", `--test-timeout=${TEST_TIMEOUT_MS}`, TEST_FILE], {
     stdio: "inherit",
@@ -24,7 +25,7 @@ async function runTests(baseUrl: string): Promise<boolean> {
   return code === 0;
 }
 
-/** Builds the framework image and runs the conformance suite against it. */
+/** フレームワークの箱を作り、仕様チェックを流す。 */
 export async function checkFramework(name: string): Promise<boolean> {
   console.log(`\n== ${name} ==`);
   let container: string | undefined;

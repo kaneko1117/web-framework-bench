@@ -8,7 +8,7 @@ const MISSING_ID = 999_999_999;
 const REQUEST_TIMEOUT_MS = 5_000;
 const MALFORMED_JSON = "{not json";
 
-// Invalid for both create and update; update additionally requires done.
+// 作成と更新の両方で不正な入力。更新はさらに done も必須。
 const INVALID_BODIES = [
   ["missing title", { done: false }],
   ["empty title", { title: "" }],
@@ -21,10 +21,12 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
 type Task = { id: number; title: string; done: boolean; createdAt: string };
 
+/** 中身を JSON にしてリクエストを送る。 */
 function call(method: string, path: string, body?: unknown): Promise<Response> {
   return callRaw(method, path, body === undefined ? undefined : JSON.stringify(body));
 }
 
+/** 中身の文字列をそのまま JSON として送る。 */
 function callRaw(method: string, path: string, body?: string): Promise<Response> {
   return fetch(`${BASE_URL}${path}`, {
     method,
@@ -34,6 +36,7 @@ function callRaw(method: string, path: string, body?: string): Promise<Response>
   });
 }
 
+/** 返事が JSON のタスクであることを確かめて返す。 */
 async function readTask(res: Response): Promise<Task> {
   assert.match(res.headers.get("content-type") ?? "", /^application\/json/);
   const body: unknown = await res.json();
@@ -41,6 +44,7 @@ async function readTask(res: Response): Promise<Task> {
   return body;
 }
 
+/** タスクの4項目がちょうどそろい、型が正しいことを確かめる。 */
 function assertTask(value: unknown): asserts value is Task {
   assert.ok(typeof value === "object" && value !== null, "task must be an object");
   assert.deepEqual(Object.keys(value).sort(), ["createdAt", "done", "id", "title"]);
@@ -53,13 +57,14 @@ function assertTask(value: unknown): asserts value is Task {
   assert.equal(new Date(task.createdAt as string).toISOString(), task.createdAt);
 }
 
+/** タスクを作り、201 が返ることを確かめる。 */
 async function create(body: unknown): Promise<Task> {
   const res = await call("POST", "/tasks", body);
   assert.equal(res.status, 201);
   return readTask(res);
 }
 
-// Runs first against a fresh server: the benchmark relies on ids being 1, 2, 3, ...
+// まっさらなサーバーに最初に流す。計測は番号が 1, 2, 3, … と振られる前提に頼っている。
 test("POST /tasks creates a task with id 1 and done defaulting to false", async () => {
   const task = await create({ title: "buy milk" });
   assert.equal(task.id, 1);
