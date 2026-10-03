@@ -59,8 +59,10 @@ async function create(body: unknown): Promise<Task> {
   return readTask(res);
 }
 
-test("POST /tasks creates a task with done defaulting to false", async () => {
+// Runs first against a fresh server: the benchmark relies on ids being 1, 2, 3, ...
+test("POST /tasks creates a task with id 1 and done defaulting to false", async () => {
   const task = await create({ title: "buy milk" });
+  assert.equal(task.id, 1);
   assert.equal(task.title, "buy milk");
   assert.equal(task.done, false);
 });
@@ -70,10 +72,10 @@ test("POST /tasks keeps done and ignores unknown fields", async () => {
   assert.equal(task.done, true);
 });
 
-test("POST /tasks assigns increasing ids and never reuses deleted ones", async () => {
+test("POST /tasks assigns consecutive ids and never reuses deleted ones", async () => {
   const first = await create({ title: "a" });
   const second = await create({ title: "b" });
-  assert.ok(second.id > first.id);
+  assert.equal(second.id, first.id + 1);
 
   assert.equal((await call("DELETE", `/tasks/${first.id}`)).status, 204);
   const third = await create({ title: "c" });

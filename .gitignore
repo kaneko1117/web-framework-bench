@@ -1,2 +1,4 @@
 node_modules/
 dist/
+*.docrev.json
+*.docrev.json.lock

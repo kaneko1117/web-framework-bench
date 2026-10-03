@@ -1,0 +1,8 @@
+{
+  "name": "@wfb/bench",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@wfb/conformance": "*"
+  }
+}

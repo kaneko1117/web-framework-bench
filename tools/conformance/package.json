@@ -1,5 +1,9 @@
 {
   "name": "@wfb/conformance",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "exports": {
+    "./docker": "./src/docker.ts",
+    "./check": "./src/check.ts"
+  }
 }

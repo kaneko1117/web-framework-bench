@@ -6,6 +6,7 @@
     "tools/*"
   ],
   "scripts": {
+    "bench": "node tools/bench/src/main.ts",
     "conformance": "node tools/conformance/src/run.ts",
     "typecheck": "tsc -p ."
   },
