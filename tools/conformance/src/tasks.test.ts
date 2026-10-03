@@ -16,6 +16,7 @@ const INVALID_BODIES = [
   ["non-boolean done", { title: "x", done: "yes" }],
   ["string boolean done", { title: "x", done: "true" }],
   ["numeric done", { title: "x", done: 1 }],
+  ["null done", { title: "x", done: null }],
 ] as const;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
