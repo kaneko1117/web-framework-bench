@@ -11,18 +11,19 @@ const UNITS: Record<string, number> = {
   GB: 1e9,
 };
 
-/** Parses the used part of `docker stats` MemUsage, e.g. "45.2MiB / 5.786GiB". */
+/** `docker stats` のメモリ表示(例 "45.2MiB / 5.786GiB")から使用量を読む。 */
 export function parseMemUsage(text: string): number {
   const match = /([\d.]+)\s*([KMG]i?B|kB|B)/.exec(text);
   if (!match) throw new Error(`unexpected MemUsage: ${text}`);
   return Math.round(Number(match[1]) * UNITS[match[2]!]!);
 }
 
+/** 箱のいまのメモリ使用量を1回読む。 */
 export function readMemory(container: string): number {
   return parseMemUsage(docker("stats", "--no-stream", "--format", "{{.MemUsage}}", container));
 }
 
-/** Streams `docker stats` (about one sample per second) and keeps the highest value. */
+/** `docker stats` を流し続け(約1秒ごと)、最大値を覚える。 */
 export class PeakMemoryWatcher {
   #child: ChildProcess;
   #peak = 0;
@@ -34,7 +35,7 @@ export class PeakMemoryWatcher {
       stdio: ["ignore", "pipe", "ignore"],
     });
     this.#child.stdout!.setEncoding("utf8").on("data", (chunk: string) => {
-      // Chunks can split a sample anywhere, so only complete lines are parsed.
+      // 出力は途中で切れて届くので、行がそろってから読む。
       const lines = (this.#pending + chunk).split("\n");
       this.#pending = lines.pop()!;
       for (const line of lines) {
@@ -46,13 +47,15 @@ export class PeakMemoryWatcher {
     });
   }
 
+  /** 読んだ中の最大値。1つも読めていなければ失敗にする。 */
   peak(): number {
     if (this.#samples === 0) throw new Error("docker stats produced no memory samples");
     return this.#peak;
   }
 
+  /** `docker stats` を止める。 */
   stop(): void {
-    // `docker stats` ignores SIGTERM while streaming, so it has to be killed outright.
+    // `docker stats` は流し続けている間、普通の終了の合図を無視するので強制終了する。
     this.#child.kill("SIGKILL");
     this.#child.stdout!.destroy();
     this.#child.unref();

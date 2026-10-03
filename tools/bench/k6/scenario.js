@@ -7,7 +7,7 @@ const VUS = Number(__ENV.VUS);
 const DURATION = __ENV.DURATION;
 const ITERATIONS = Number(__ENV.ITERATIONS || 0);
 const SEEDED = Number(__ENV.SEEDED || 0);
-// Every id-bearing URL shares one metric name; per-URL series would exhaust k6's memory.
+// 番号入りの URL は記録上1つの名前にまとめる。URL ごとに記録すると k6 のメモリが尽きる。
 const COLLECTION = { tags: { name: "/tasks" } };
 const ITEM = { tags: { name: "/tasks/:id" } };
 const JSON_HEADERS = { "content-type": "application/json" };
@@ -23,10 +23,12 @@ export const options = {
   },
 };
 
+/** 投入したタスク(1..SEEDED)からランダムに番号を選ぶ。 */
 function randomSeededId() {
   return Math.floor(Math.random() * SEEDED) + 1;
 }
 
+/** 操作ごとに1回分のリクエスト。`seed` は計測前のデータ投入用。 */
 const actions = {
   seed: () => http.post(`${BASE_URL}/tasks`, JSON.stringify({ title: `seed-${exec.scenario.iterationInTest}` }), { ...COLLECTION, headers: JSON_HEADERS }),
   create: () => http.post(`${BASE_URL}/tasks`, JSON.stringify({ title: "bench", done: false }), { ...COLLECTION, headers: JSON_HEADERS }),
@@ -37,6 +39,7 @@ const actions = {
 
 export default actions[SCENARIO];
 
+/** 指揮役に渡すため、集計結果を JSON 1行で出す。 */
 export function handleSummary(data) {
   const reqs = data.metrics.http_reqs.values;
   const duration = data.metrics.http_req_duration.values;
