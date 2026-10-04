@@ -20,7 +20,8 @@ import {
 } from "@wfb/conformance/docker";
 import { K6_IMAGE, type K6Params, type K6Summary, runK6 } from "./k6.ts";
 import { PeakMemoryWatcher, readMemory } from "./memory.ts";
-import { type BenchResult, type FrameworkResult, type Run, SCENARIOS, type Scenario } from "./result.ts";
+import { type BenchResult, type FrameworkResult, type Run, SCENARIOS, type Scenario, type StaticMetrics } from "./result.ts";
+import { collectStaticMetrics } from "./static.ts";
 
 const CONDITIONS: BenchResult["conditions"] = {
   serverCpuset: "0",
@@ -128,7 +129,7 @@ async function measure(framework: string, scenario: Scenario, repetition: number
 }
 
 /** 1つのフレームワークの全回分を、操作ごとの真ん中の値にまとめる。 */
-function aggregate(name: string, runtimeVersion: string, runs: Run[]): FrameworkResult {
+function aggregate(name: string, runtimeVersion: string, staticMetrics: StaticMetrics, runs: Run[]): FrameworkResult {
   const scenarios = {} as FrameworkResult["scenarios"];
   for (const scenario of SCENARIOS) {
     const rs = runs.filter((r) => r.scenario === scenario);
@@ -148,6 +149,7 @@ function aggregate(name: string, runtimeVersion: string, runs: Run[]): Framework
   return {
     name,
     runtimeVersion,
+    static: staticMetrics,
     startupMs: median(runs.map((r) => r.startupMs)),
     idleMemoryBytes: median(runs.map((r) => r.idleMemoryBytes)),
     scenarios,
@@ -176,6 +178,11 @@ function printSummary(result: BenchResult): void {
   const mb = (bytes: number) => (bytes / 1024 ** 2).toFixed(1);
   for (const f of result.frameworks) {
     console.log(`\n${f.name} (${f.runtimeVersion}) startup ${f.startupMs.toFixed(0)}ms, idle ${mb(f.idleMemoryBytes)}MiB`);
+    const st = f.static;
+    console.log(
+      `image ${mb(st.imageBytes)}MiB (app ${mb(st.appImageBytes)}MiB), ${st.sourceLines} lines, ` +
+        `${st.dependencies.total} dependencies (${st.dependencies.direct} direct)`,
+    );
     console.table(
       Object.fromEntries(
         SCENARIOS.map((s) => {
@@ -215,8 +222,10 @@ async function main(): Promise<void> {
     console.warn(`warning: other containers are running and may skew results: ${environment.otherContainers.join(", ")}`);
   }
 
+  const staticMetrics = new Map<string, StaticMetrics>();
   for (const name of frameworks) {
     if (!(await checkFramework(name))) throw new Error(`${name} failed conformance; not benchmarking`);
+    staticMetrics.set(name, collectStaticMetrics(name));
   }
 
   removeNetwork();
@@ -239,13 +248,18 @@ async function main(): Promise<void> {
   }
 
   const result: BenchResult = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     startedAt,
     finishedAt: new Date().toISOString(),
     environment,
     conditions: { ...CONDITIONS, repetitions },
     frameworks: frameworks.map((name) =>
-      aggregate(name, docker("run", "--rm", "--entrypoint", "node", imageName(name), "--version"), runs.get(name)!),
+      aggregate(
+        name,
+        docker("run", "--rm", "--entrypoint", "node", imageName(name), "--version"),
+        staticMetrics.get(name)!,
+        runs.get(name)!,
+      ),
     ),
   };
   printSummary(result);
