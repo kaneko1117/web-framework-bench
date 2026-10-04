@@ -18,9 +18,20 @@ export type Run = ScenarioResult & {
   idleMemoryBytes: number;
 };
 
+/** 動かさずに分かる数字。 */
+export type StaticMetrics = {
+  imageBytes: number;
+  /** どちらも箱の中で数えた展開後のサイズ。app はアプリの置き場所(WORKDIR)の分。 */
+  appImageBytes: number;
+  sourceLines: number;
+  /** total は芋づる式に入るものを含む本番用の数(版違いの重複も数える)、direct は package.json に書いた数。 */
+  dependencies: { total: number; direct: number };
+};
+
 export type FrameworkResult = {
   name: string;
   runtimeVersion: string;
+  static: StaticMetrics;
   /** 全回の真ん中の値。 */
   startupMs: number;
   idleMemoryBytes: number;
@@ -29,7 +40,7 @@ export type FrameworkResult = {
 };
 
 export type BenchResult = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   startedAt: string;
   finishedAt: string;
   environment: {
